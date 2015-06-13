@@ -174,7 +174,7 @@ void loop() {
    "ldi r19, 6 \n"
    "mov r4, r19 \n"   // r4 <= 6
    "ldi r19, 127 \n"
-   "mov r4, r19 \n"   // r5 <= 127
+   "mov r5, r19 \n"   // r5 <= 127
    
    "ldi r24, 1 \n"
    "ldi r23, 3 \n"
