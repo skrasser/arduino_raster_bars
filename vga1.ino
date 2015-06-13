@@ -145,7 +145,26 @@ __asm__ __volatile__ (
   "  clrmem8 \n"
   "  clrmem2 \n"
   ".endm \n"
- );
+);
+
+__asm__ __volatile__ (
+  ".macro front_porch_and_sync colport, syncport \n"
+  // Front porch, 16 pixels, 8 cycles
+  "  out \\colport, __zero_reg__ \n" // 1
+  "  delay4 \n"
+  "  delay2 \n"
+  "  delay1 \n"
+  // Output sync in cycle 329, keep it for 32 cycles
+  "  out \\syncport, r24 \n"          // 1
+  "  delay16 \n"
+  "  delay8 \n"
+  "  delay4 \n"
+  "  delay2 \n"
+  "  delay1 \n"
+  "  out \\syncport, __zero_reg__ \n" // 1
+  // Total for macro: 41 cycles
+  ".endm \n"
+);
 
 void setup() {
   calc_lumtab();
@@ -192,118 +211,112 @@ void loop() {
    "ldi r18, 0 \n"
       
    "loop_frame: \n"
+   // Cycle budget for each scanline is 420; we are 4 cycles over budget
+
    // Starting with vsync output
    
    // Vsync front porch: 1 line
    ////////////////////////////
-   "call black_line \n"     // 4 cycles for the call
-   "call wait52 \n"         // 52 cycles total
+   "call black_line \n"     // 369
+   "call wait_bp \n"        // 52
+   "delay1 \n"              // 1
+                            // 1 + 1 (for next two instructions)
+   // ==> 424 (+4)
    
    // Vsync pulse: 3 lines
    ///////////////////////
-   "out %[portc], r24 \n"   // 1 cycle, unaccounted in timing
-   "ldi r25, 3 \n"          // 1
+   "out %[portc], r24 \n"   // (1), in last line's BP
+   "ldi r25, 3 \n"          // (1), ditto
    "v_sync_pulse: \n"
-   "call black_line \n"     // 4
-   "call wait52 \n"
-   "nop \n"                 // 1
+   "call black_line \n"     // 369
+   "call wait_bp \n"        // 52
    "dec r25 \n"             // 1
    "brne v_sync_pulse \n"   // 2 if taken, 1 otherwise
-   "out %[portc], __zero_reg__ \n"   // 1 cycle, unaccounted in timing
+   "out %[portc], __zero_reg__ \n"   // 1 cycle (equals out with untaken branch)
+   // ==> 424 (+4)
   
    // Vsync back porch: 16 lines
    /////////////////////////////
    // First line: clear buffer
-   "nop \n"         // 1
-   "call black_line_clr_buf \n"     // 4
-   "call prep_wait52 \n"
-   "ldi r20, 0 \n"          // 1, set logical line back to 0
-   "nop \n"                 // 1
-   "nop \n"                 // 1
+   "call black_line_clr_buf \n"     // 369
+   "call prep_wait_bp \n"           // 52
+   "ldi r20, 0 \n"             // 1, set logical line back to 0
+   "delay1 \n"                 // 1
+                               // 1 (for next instruction)
+   // ==> 424 (+4)
+   
    // 15 more lines
-   "ldi r25, 15 \n"         // 1
+   "ldi r25, 15 \n"         // (1), accounted for above
    "v_back_porch: \n"
-   "call black_line \n"     // 4
-   "call prep_wait52 \n"
-   "nop \n"                 // 1
+   "call black_line \n"     // 369
+   "call prep_wait_bp \n"   // 52
    "dec r25 \n"             // 1
    "brne v_back_porch \n"   // 2 if taken, 1 otherwise
+                            // 1, next instruction on untaken branch
+   // ==> 424 (+4)
 
    // Visible area: upper 240 lines
    ////////////////////////////////
-   "ldi r25, 240 \n"        // 1
+   "ldi r25, 240 \n"        // (1), accounted for above
    "vis_upper: \n"
-   "call draw_buffer \n"    // 4
-   "call draw_wait52 \n"
-   "nop \n"                 // 1
+   "call draw_buffer \n"    // 369
+   "call draw_wait_bp \n"   // 52
    "dec r25 \n"             // 1
-   "brne vis_upper \n"
-    
+   "brne vis_upper \n"      // 2 if taken, 1 otherwise
+                            // 1, next instruction on untaken branch
+   // ==> 424 (+4)
+   
    // Visible area: lower 240 lines
    ////////////////////////////////
-   "ldi r25, 240 \n"        // 1
+   "ldi r25, 240 \n"        // (1), accounted for above
    "vis_lower: \n"
-   "call draw_buffer \n"    // 4
-   "call draw_wait52 \n"
-   "nop \n"                 // 1
+   "call draw_buffer \n"    // 369
+   "call draw_wait_bp \n"   // 52
    "dec r25 \n"             // 1
-   "brne vis_lower \n"
+   "brne vis_lower \n"      // 2 if taken, 1 otherwise
+                            // 1, next instruction on untaken branch
+   // ==> 424 (+4)
 
    // Start over with new frame (v_sync)
    /////////////////////////////////////
-   "add r18, r24 \n"        // 1, increment frame count
-   "jmp loop_frame \n"      // 3
+   "add r18, r24 \n"        // (1), increment frame count
+   "jmp loop_frame \n"      // 3 ==> unaccounted
    
    
    // Subs
-   "black_line: \n"
-   // Wait 640+16 pixels (328 cycles), includes front porch
-   "ldi r28, 109\n"         // 1 (327 to go)
-   "wait_black: \n"
-   "dec r28 \n"             // 1
-   "brne wait_black \n"     // 2 taken, 1 else
-   // At this point 1 + 109*3 - 1 cyles have passed (327)
-   "delay2 \n"
-   // Output sync in cycle 329, keep it for 32 cycles
-   "out %[portb], r24 \n"   // 1
-   "delay16 \n"
-   "delay16 \n"
-   "out %[portb], __zero_reg__ \n"   // 1
-   // Back portch is 120 pixels (60 cycles)
-   "ret \n"                 // 4 cycles, leaves 56 cycles of backporch to caller
+   "black_line: \n" // 369 incl. call
+   "delay64 \n"
+   "delay64 \n"
+   "delay64 \n"
+   "delay64 \n"
+   "delay64 \n" // this takes us to cycle 320   
+   "front_porch_and_sync %[portd], %[portb] \n" // 41
+   // Back portch is 120 pixels (60 cycles), 59 more
+   "ret \n"                 // 4 cycles, leaves 55 cycles of backporch to caller
    
-   "black_line_clr_buf: \n"
+   "black_line_clr_buf: \n" // 369 incl. call
    // 328 cycles till front porch, which we'll use to clear the linebuf array
    "ldi r26, lo8(%[linebuf]) \n" // 1  // load linebuffer ptr into X
    "ldi r27, hi8(%[linebuf]) \n" // 1
    "clrmem106 \n"                // 212
    "delay64 \n"
    "delay32 \n"
-   "delay16 \n"
-   "delay4 \n"
-   "delay1 \n"
-   // Output sync in cycle 329, keep it for 32 cycles
-   "out %[portb], r24 \n"   // 1
-   "delay16 \n"
-   "delay16 \n"
-   "out %[portb], __zero_reg__ \n"   // 1
-   // Back portch is 120 pixels (60 cycles)
-   "ret \n"                 // 4 cycles, leaves 56 cycles of backporch to caller
+   "delay8 \n"
+   "delay2 \n" // this takes us to cycle 320
+   "front_porch_and_sync %[portd], %[portb] \n" // 41
+   // Back portch is 120 pixels (60 cycles), 59 more
+   "ret \n"                 // 4 cycles, leaves 55 cycles of backporch to caller
    
-   "draw_buffer: \n"
+   "draw_buffer: \n" // 369 including call
    "out106 r21, %[portd] \n"       // 318 = 106 * 3
    "delay2 \n"                     // 2
-   // Front porch, 16 pixels, 8 cycles
-   "out %[portd], __zero_reg__ \n" // 1
-   "delay8 \n"
-   // Output sync in cycle 329, keep it for 32 cycles
-   "out %[portb], r24 \n"          // 1
-   "delay16 \n"
-   "delay16 \n"
-   "out %[portb], __zero_reg__ \n" // 1
-   "ret \n"                        // 4 cycles, leaves 56 cycles of backporch to caller
+   "front_porch_and_sync %[portd], %[portb] \n" // 41
+   "ret \n"                        // 4 cycles, leaves 55 cycles of backporch to caller
    
-   "wait52: \n"          // 4 for the call
+   // Subs for waiting and/or doing work during the horizontal backporch.
+   // Calling these takes 52 cycles (including 4 cycles for the call).
+   
+   "wait_bp: \n"         // 4 for the call
    "ldi r28, 14\n"       // 1
    "loop_wait52: \n"
    "dec r28 \n"          // 1
@@ -311,15 +324,7 @@ void loop() {
    "delay2 \n"
    "ret \n"              // 4
    
-   "wait51: \n"          // 4 for the call
-   "ldi r28, 14\n"       // 1
-   "loop_wait51: \n"
-   "dec r28 \n"          // 1
-   "brne loop_wait51 \n" // 2 taken, 1 else
-   "delay1 \n"
-   "ret \n"              // 4
-   
-   "prep_wait52: \n"             // 4 for the call
+   "prep_wait_bp: \n"             // 4 for the call
    "ldi r26, lo8(%[linebuf]) \n" // 1  // load linebuffer ptr into X
    "ldi r27, hi8(%[linebuf]) \n" // 1
    "ldi r28, 13\n"               // 1
@@ -331,7 +336,7 @@ void loop() {
    "ret \n"                      // 4
 
    // r25 has linenum
-   "draw_wait52: \n"             // 4 for the call
+   "draw_wait_bp: \n"             // 4 for the call
    
    // calculate the offset for this line
    "mov r17, r20 \n"             // 1, copying line number
@@ -383,7 +388,6 @@ void loop() {
    "ldi r27, hi8(%[linebuf]) \n" // 1
    
    "delay2 \n"
-   "delay1 \n"
    "ret \n"                      // 4
 
    : // output operands
