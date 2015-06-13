@@ -4,9 +4,14 @@
 // vertical sync is on portc; pins connected over 470 Ohm resistor each
 #define H_SYNC 8  // PB0
 #define V_SYNC A0 // PC0
-#define RED 0     // PD0
-#define GRN 1     // PD1
-#define BLU 2     // PD2
+// PDX
+#define RED0 0    // PD0
+#define GRN0 1    // PD1
+#define GRN1 2
+#define GRN2 3
+#define BLU0 4
+#define BLU1 5
+#define BLU2 6
 
 // 106 pixels width for the line buffer, each pixel in the buffer corresponds
 // to 6 pixels in the VGA output.
@@ -23,6 +28,22 @@ const int8_t sinetab[128] __attribute__((aligned(256))) = {
   -89, -84, -80, -75, -70, -64, -59, -54, -48, -42, -36, -30, -24, -18, -12, -6
 };
 
+uint8_t lumtab_grn[128] __attribute__((aligned(256)));
+uint8_t lumtab_blu[128] __attribute__((aligned(256)));
+
+void calc_lumtab(void) {
+  size_t i;
+  unsigned int val;
+  for(i = 0; i < sizeof(sinetab); ++i) {
+    val = 128u + sinetab[i];
+    val = (val >> 5) & 7;
+    // Make sure val is at least 1, then shift up for green output
+    lumtab_grn[i] = (val ? val : 1) << 1;
+    // For blue, invert luminance, shift up to blue output
+    val = 7 - val;
+    lumtab_blu[i] = (val ? val : 1) << 4;
+  }
+}
 
 #define mdbl(macro, after, before) \
   ".macro " #macro #after "\n" \
@@ -127,12 +148,16 @@ __asm__ __volatile__ (
  );
 
 void setup() {
+  calc_lumtab();
   pinMode(H_SYNC, OUTPUT);
   pinMode(V_SYNC, OUTPUT);
-  pinMode(RED, OUTPUT);
-  pinMode(GRN, OUTPUT);
-  pinMode(BLU, OUTPUT);
-  
+  pinMode(RED0, OUTPUT);
+  pinMode(GRN0, OUTPUT);
+  pinMode(GRN1, OUTPUT);
+  pinMode(GRN2, OUTPUT);
+  pinMode(BLU0, OUTPUT);
+  pinMode(BLU1, OUTPUT);
+  pinMode(BLU2, OUTPUT);
   cli();
 }
 
@@ -148,6 +173,8 @@ void loop() {
    "mov r3, r19 \n"   // r3 <= 4
    "ldi r19, 6 \n"
    "mov r4, r19 \n"   // r4 <= 6
+   "ldi r19, 127 \n"
+   "mov r4, r19 \n"   // r5 <= 127
    
    "ldi r24, 1 \n"
    "ldi r23, 3 \n"
@@ -315,8 +342,8 @@ void loop() {
    "mov r26, r20 \n"             // 1, move line number into offset
    "add r26, r18 \n"             // 1, add frame count
    "cbr r26, 0x80 \n"            // 1, mod 128 (this is X low)
-   "ldi r27, hi8(%[sinetab]) \n" // 1, hi byte from sinetab
-   "ld r19, X \n"                // 2, load value from sinetab
+   "ldi r27, hi8(%[sinetab]) \n" // 1, hi byte of sinetab
+   "ld r19, X \n"                // 2, load value from sinetab using offet in r26
    
    "muls r17, r19 \n"            // 2
    "mov r28, r1 \n"              // 1, the high byte is what we need
@@ -327,16 +354,22 @@ void loop() {
    "add r28, r17 \n"             // 1
    // 17 cycles
    
+   // calculate color based on lumtab with offset in r26
+   "ldi r27, hi8(%[lumtab_grn]) \n"  // 1, hi byte of lumtab
+   "ld r19, X \n"                    // 2, load value from lumtab using offet in r26
+   "ldi r27, hi8(%[lumtab_blu]) \n"  // 1, hi byte of lumtab
+   "ld r17, X \n"                    // 2, load value from lumtab using offet in r26
+    
    // linebuffer is aligned on 0x100 boundaries, so we can just use the low byte as offset
    "mov r26, r28 \n"             // 1
    "ldi r27, hi8(%[linebuf]) \n" // 1
    
    // Drawing
-   "st X+, r3 \n"                // 2, blue
-   "st X+, r3 \n"                // 2, blue
-   "st X+, r22 \n"               // 2, white
-   "st X+, r23 \n"               // 2, yellow
-   "st X+, r23 \n"               // 2, yellow
+   "st X+, r17 \n"               // 2, blue
+   "st X+, r17 \n"               // 2, blue
+   "st X+, r5 \n"                // 2, white
+   "st X+, r19 \n"               // 2, green
+   "st X+, r19 \n"               // 2, green
 
    // Increment logical line every 4 scanlines 
    "ldi r19, 3 \n"               // 1, load bitmask (optimize later)
@@ -349,7 +382,7 @@ void loop() {
    "ldi r26, lo8(%[linebuf]) \n" // 1  // load linebuffer ptr into X
    "ldi r27, hi8(%[linebuf]) \n" // 1
    
-   "delay8 \n"                   // 4 
+   "delay2 \n"
    "delay1 \n"
    "ret \n"                      // 4
 
@@ -357,6 +390,8 @@ void loop() {
    : // input operands
    [linebuf] "i" (linebuffer),
    [sinetab] "i" (sinetab),
+   [lumtab_grn] "i" (lumtab_grn),
+   [lumtab_blu] "i" (lumtab_blu),
    [portb] "I" (_SFR_IO_ADDR(PORTB)),
    [portc] "I" (_SFR_IO_ADDR(PORTC)),
    [portd] "I" (_SFR_IO_ADDR(PORTD))
