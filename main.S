@@ -6,7 +6,12 @@
 start:
 	ldi r26, lo8(linebuf) 	; load linebuffer ptr into X
 	ldi r27, hi8(linebuf)
-   
+
+	.macro lldi rd, imm
+	ldi r19, \imm
+	mov \rd, r19
+	.endm
+	
 	;; Keeping some numbers handy
 	ldi r19, 2		; ldi needs registers > r15
 	mov r2, r19		; r2 <= 2
@@ -16,7 +21,12 @@ start:
 	mov r4, r19		; r4 <= 6
 	ldi r19, 127
 	mov r5, r19		; r5 <= 127
-   
+
+	;; Used as colors for bottom text (fixme: combine with above)
+	lldi r6, 2
+	lldi r7, 4
+	lldi r8, 6
+	
 	ldi r24, 1
 	ldi r23, 3
 	ldi r22, 7
@@ -29,6 +39,8 @@ start:
 	// r19 -- misc
 	// r18 -- frame counter/time
 	// r17 -- misc
+	// r15 -- front delay for text
+	// r14 -- back delay for text
    
 	ldi r18, 0
       
@@ -109,13 +121,21 @@ vis_lower:
 	;; Macro to call a hardcoded line of output
 	.macro hardline sub
 	delay2			; 2, account for memory access in previous scanlines
-	call \sub		; 89 (85 + 4)
-	delay64
-	delay64
-	delay64
+
 	delay32
-	delay4
-	delay4
+	delay8
+	mov r19, r15		; 1
+	vardelay r19, l1_\sub	; 7 + 0..63
+	call \sub		; 111 (107 + 4)
+	mov r19, r14		; 1
+	vardelay r19, l2_\sub	; 7 + 63..0
+	;; vardelay total: 14 + 127 = 141
+	;; 2 add'l mov cycles
+
+	delay16
+	delay8
+	delay2
+	delay1
 	front_porch_and_sync PORTD, PORTB ; 41
 	delay4				  ; 4
 	call prep_wait_bp		  ; 52

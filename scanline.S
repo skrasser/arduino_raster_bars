@@ -25,17 +25,35 @@ black_line: 			; 369 incl. call
 	;;  Back porch is 120 pixels (60 cycles), 59 more
 	ret			; 4 cycles, leaves 55 cycles of backporch to caller
 
-	;; Draws a black line while zeroing out linebuf
-	;; Clobbers: r26, r27 (X)
+	;; Draws a black line while zeroing out linebuf, calculates
+	;; offsets for text at bottom of screen based on sinetab
+	;; Sets: r14, r15 (offsets)
+	;; Clobbers: r26, r27 (X), r19
 black_line_clr_buf:		; 369 incl. call
 	;;  328 cycles till front porch, which we'll use to clear the linebuf array
 	ldi r26, lo8(linebuf)	; 1, load linebuffer ptr into X
 	ldi r27, hi8(linebuf)	; 1
 	clrmem106		 	; 212
+
+	mov r19, r18		; 1, copy frame count
+	lsr r19			; 1, 0..127
+
+	ldi r27, hi8(sinetab)	; 1
+	mov r26, r19		; 1, use as offset to sinetab
+	ld r19, X		; 2, load value from sinetab
+	asr r19			; 1, divide by 2
+	subi r19, -63		; 1, add 63 to get all positive sine
+	
+	mov r15, r19		; 1, keep for later
+	ldi r17, 127		; 1
+	sub r17, r19		; 1
+	mov r14, r17		; 1, keep for later
+	
 	delay64
-	delay32
+	delay16
 	delay8
-	delay2			; this takes us to cycle 320
+	delay4
+	delay1			; this takes us to cycle 320
 	front_porch_and_sync PORTD, PORTB 	; 41
 	;; Back portch is 120 pixels (60 cycles), 59 more
 	ret			; 4 cycles, leaves 55 cycles of backporch to caller

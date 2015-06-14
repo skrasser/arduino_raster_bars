@@ -35,6 +35,39 @@
 	delay32
 	.endm
 
+	;; Variable delay based on reg
+	.macro vardelay reg, lab
+	lsr \reg		; 1, puts LSB into C
+	brcs first_\lab		; 2 taken, 1 not taken
+first_\lab:
+	;; 2 cycles
+	;; +1 if bit0 = 1
+
+	lsr \reg		; 1
+	brcc second_\lab	; 2/1
+	delay1			; 1, match branch taken cycle count
+	delay2			; 2 more cycles
+second_\lab:
+	;; 3 cycles
+	;; +2 if bit1 = 1
+
+	breq done_\lab		; exit if zero
+	delay1			; total: 2
+	;; totals:
+	;; 7 cycles
+	;; +1 if bit0 set, +2 if bit1 set
+	
+loop_\lab:			; 4 cycles for each iteration
+	delay1
+	dec \reg
+	brne loop_\lab
+	delay1			; 1, compensate for brne not taken
+	
+done_\lab:
+	;; grand total:
+	;; 7 + reg cycles
+	.endm
+	
 	;; Output macros
 	.macro out1 reg,port
 	ld \reg, X+		; 2

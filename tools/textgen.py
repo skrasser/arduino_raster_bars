@@ -1,16 +1,31 @@
 #!/usr/bin/env python
 
 lines = [
-    ' # # #  # # #  # # #    ### #  # ###   ##   ###  ### #### ###     ###  ##   ###  ',
-    ' # # #  # # #  # # #   #    #  # #  # #  # #    #    #    #  #   #    #  # # # # ',
-    ' # # #  # # #  # # #    ##  ###  ###  ####  ##   ##  ###  ###    #    #  # # # # ',
-    ' # # #  # # #  # # #      # #  # #  # #  #    #    # #    #  #   #    #  # # # # ',
-    '  # #    # #    # #  # ###  #  # #  # #  # ###  ###  #### #  # #  ###  ##  # # # ',
+    #               |    |    |    :    |    I    |    :    |    |    |
+    ' # # #  # # #  # # #    ### # .#.###:::##:::###..### #### ###     ###  ##   ###  ',
+    ' # # #  # # #  #.#.#...#....# :#:#:;#;#;;#;#;;::#::..#....#..#...#    #  # # # # ',
+    ' # # #  # # #  #.#.#....##..###::###;;####;;##:::##..###..###....#    #  # # # # ',
+    ' # # #  # # #  #.#.#......#.#.:#:#:;#;#;;#;;;;#::::#.#....#..#...#    #  # # # # ',
+    '  # #    # #    # #  # ###  # .#.#.:#:#::#:###..###  #### #  # #  ###  ##  # # # ',
+    #                                        ^--- middle
+]
+
+diamond = [
+    '     .     ',
+    '   .:;:.   ',
+    ' ..:;#;:.. ',
+    '   .:;:.   ',
+    '     .     ',
 ]
 
 # Registers with right values for colors
-black = 'r1'
-white = 'r5'
+colmap = {
+    ' ': 'r1',	# black
+    '#': 'r5',	# white
+    '.': 'r6',	# dark green
+    ':': 'r7',	# medium/dark green
+    ';': 'r8',	# medium green
+}
 
 # Output port
 port = 'PORTD'
@@ -21,14 +36,12 @@ print '''
 '''
 
 for line in lines:
+    line = diamond[i] + line + diamond[i]
     print '\n\t; %d cycles including ret' % (len(line) + 4)
     print '\t.global txt_line%d' % i
     print 'txt_line%d:' % i
     for ch in line:
-        if ch == ' ':
-            color = black
-        else:
-            color = white
+        color = colmap[ch]
         print '\tout %s, %s' % (port, color)
     print '\tret'
     i += 1
