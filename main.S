@@ -93,19 +93,47 @@ vis_upper:
 	;; ==> 424 (+4)
    
 	;;
-	;; Visible area: lower 240 lines
+	;; Visible area: lower 240-5 lines
 	;; 
-	ldi r25, 240		; (1), accounted for above
+	ldi r25, 235		; (1), accounted for above
 vis_lower:
 	call draw_buffer	; 369
 	call draw_wait_bp	; 52
 	dec r25			; 1
 	brne vis_lower		; 2 if taken, 1 otherwise
-				; 1, next instruction on untaken branch
+	delay1			; 1, 2 total for brne
 	;; ==> 424 (+4)
+
+	delay1			; 1, timing fix, xxx review this
+	
+	;; Macro to call a hardcoded line of output
+	.macro hardline sub
+	delay2			; 2, account for memory access in previous scanlines
+	call \sub		; 89 (85 + 4)
+	delay64
+	delay64
+	delay64
+	delay32
+	delay4
+	delay4
+	front_porch_and_sync PORTD, PORTB ; 41
+	delay4				  ; 4
+	call prep_wait_bp		  ; 52
+	.endm
+
+	hardline txt_line0
+	delay4
+	hardline txt_line1
+	delay4
+	hardline txt_line2
+	delay4
+	hardline txt_line3
+	delay4
+	hardline txt_line4
+	;; No delay for last line to account for 4 cycles below
 
 	;; 
 	;; Start over with new frame (v_sync)
 	;; 
-	add r18, r24		; (1), increment frame count
-	jmp loop_frame		; 3 ==> unaccounted
+	add r18, r24		; 1, increment frame count
+	jmp loop_frame		; 3

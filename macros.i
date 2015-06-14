@@ -1,5 +1,5 @@
 #define __zero_reg__ r1
-	
+
 	;; Delay macros
 	.macro	delay1
 	nop
@@ -119,3 +119,22 @@
 	clrmem8
 	clrmem2
 	.endm
+
+	
+	.macro front_porch_and_sync colport, syncport
+	;;  Front porch, 16 pixels, 8 cycles
+	out \colport, r1
+	delay4
+	delay2
+	delay1
+	;; Output sync in cycle 329, keep it for 32 cycles
+	out \syncport, r24
+	delay16
+	delay8
+	delay4
+	delay2
+	delay1
+	out \syncport, r1
+	;; Total for macro: 41 cycles
+	.endm
+

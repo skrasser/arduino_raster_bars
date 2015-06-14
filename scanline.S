@@ -9,23 +9,6 @@
 	.global prep_wait_bp
 	.global draw_wait_bp
 
-	.macro front_porch_and_sync colport, syncport
-	;;  Front porch, 16 pixels, 8 cycles
-	out \colport, r1
-	delay4
-	delay2
-	delay1
-	;; Output sync in cycle 329, keep it for 32 cycles
-	out \syncport, r24
-	delay16
-	delay8
-	delay4
-	delay2
-	delay1
-	out \syncport, r1
-	;; Total for macro: 41 cycles
-	.endm
-
 	;;
 	;; Subs to draw the visible area, front porch, and sync of a scanline
 	;; Expect r1=0, r24=1

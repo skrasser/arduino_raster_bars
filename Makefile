@@ -11,6 +11,12 @@ MONITOR_PORT = /dev/cu.usbmodem*
 
 ASFLAGS += -I/opt/local/avr/include
 
-COMMON_DEPS += macros.i pins.i
+COMMON_DEPS += macros.i pins.i text.S
 
 include $(ARDMK_DIR)/Arduino.mk
+
+text.S: tools/textgen.py
+	$< >$@
+
+clean::
+	echo test
