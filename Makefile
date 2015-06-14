@@ -8,4 +8,9 @@ AVRDUDE = /opt/local/bin/avrdude
 
 BOARD_TAG = uno
 MONITOR_PORT = /dev/cu.usbmodem*
+
+ASFLAGS += -I/opt/local/avr/include
+
+COMMON_DEPS += macros.i pins.i
+
 include $(ARDMK_DIR)/Arduino.mk
