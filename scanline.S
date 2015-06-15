@@ -4,6 +4,7 @@
 	.global black_line
 	.global black_line_clr_buf
 	.global draw_buffer
+	.global draw_buffer_rbars
 
 	.global wait_bp
 	.global prep_wait_bp
@@ -21,7 +22,7 @@ black_line: 			; 369 incl. call
 	delay64
 	delay64
 	delay64			; this takes us to cycle 320   
-	front_porch_and_sync PORTD, PORTB	; 41
+	front_porch_and_sync	; 41
 	;;  Back porch is 120 pixels (60 cycles), 59 more
 	ret			; 4 cycles, leaves 55 cycles of backporch to caller
 
@@ -33,7 +34,7 @@ black_line_clr_buf:		; 369 incl. call
 	;;  328 cycles till front porch, which we'll use to clear the linebuf array
 	ldi r26, lo8(linebuf)	; 1, load linebuffer ptr into X
 	ldi r27, hi8(linebuf)	; 1
-	clrmem106		 	; 212
+	fillmem106 r9	 	; 212, fill with 0x80
 
 	mov r19, r18		; 1, copy frame count
 	lsr r19			; 1, 0..127
@@ -54,17 +55,66 @@ black_line_clr_buf:		; 369 incl. call
 	delay8
 	delay4
 	delay1			; this takes us to cycle 320
-	front_porch_and_sync PORTD, PORTB 	; 41
+	front_porch_and_sync 	; 41
 	;; Back portch is 120 pixels (60 cycles), 59 more
 	ret			; 4 cycles, leaves 55 cycles of backporch to caller
 
 	;; Output 106 bytes pointed to by X
-	;; Clobbers: r21
+	;; Clobbers: r21, X
 draw_buffer:			; 369 including call
 	out106 r21, PORTD	; 318 = 106 * 3
 	delay2
-	front_porch_and_sync PORTD, PORTB	; 41
+	front_porch_and_sync	; 41
 	ret			; 4 cycles, leaves 55 cycles of backporch to caller
+
+	;; Like draw_buffer but also output horizontal raster bars
+	;; Clobbers: r12, X, r19, r17
+	;; Uses r18 (frame count), r25 (scanline counter)
+draw_buffer_rbars:
+	out106 r21, PORTD	; 318 = 106 * 3
+	ldi r27, hi8(sinetab)	; 1
+	mov r26, r18		; 1, copy frame count
+	.macro rbar1		; must take 7 cycles
+	lsr r26			; 1
+	ld r19, X		; 2, load value from sinetab
+	asr r19			; 1, divide by 2
+	asr r19			; 1, divide by 2 again
+	mov r26, r25		; 1, copy scanline counter
+	add r26, r19		; 1, add sine value and use as offset
+	.endm
+	.macro rbar2		; must take 31 cycles
+	add r26, r19		; 1
+	add r26, r19		; 1, added now 3/4th of sinetab value
+	ldi r27, hi8(gradtab)	; 1
+	subi r26, 94		; 1
+	ld r19, X		; 2, load value from gradtab
+	out PORTC, r19		; 1, output value to red background channel
+	
+	ldi r27, hi8(sinetab)	; 1
+	mov r26, r18		; 1, copy frame count
+	subi r26, -64		; 1, subtract to change phase
+	lsr r26			; 1, divide by 2 for half the speed
+	ld r19, X		; 2, load value from sinetab	
+	asr r19			; 1, divide by 2
+	asr r19			; 1, divide by 2 again
+	mov r26, r25		; 1, copy scanline counter
+	add r26, r19		; 1, add sine value and use as offset
+	add r26, r19		; 1
+	add r26, r19		; 1, added now 3/4th of sinetab value
+	ldi r27, hi8(gradtab)	; 1
+	subi r26, 94		; 1
+	ld r19, X		; 2, load value from gradtab
+
+	
+	//delay1
+	//delay2
+	//delay4
+	delay8
+//	delay16	
+	.endm
+	front_porch_and_sync_work rbar1 rbar2 r19	; 41
+	ret			; 4 cycles, leaves 55 cycles of backporch to caller
+
 
 	;;
 	;; Subs to wait and do work while outputting the back porch of a

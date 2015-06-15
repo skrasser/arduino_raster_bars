@@ -2,8 +2,8 @@
 
 // Pin mappings for VGA; colors are on portd, horizontal sync is on portb,
 // vertical sync is on portc; pins connected over 470 Ohm resistor each
-#define H_SYNC 8  // PB0
-#define V_SYNC A0 // PC0
+#define H_SYNC 13 // PB0
+#define V_SYNC A5 // PC0
 // PDX
 #define RED0 0    // PD0
 #define GRN0 1    // PD1
@@ -12,6 +12,18 @@
 #define BLU0 4
 #define BLU1 5
 #define BLU2 6
+#define BKGR 7
+
+#define BGRED0 8
+#define BGRED1 9
+#define BGRED2 10
+#define BGRED3 11
+#define BGRED4 12
+#define BGGRN0 A0
+#define BGGRN1 A1
+#define BGGRN2 A2
+#define BGGRN3 A3
+#define BGGRN4 A4
 
 // 106 pixels width for the line buffer, each pixel in the buffer corresponds
 // to 6 pixels in the VGA output.
@@ -34,6 +46,7 @@ int8_t sinetab[128] __attribute__((aligned(256))) = {
 
 uint8_t lumtab_grn[128] __attribute__((aligned(256)));
 uint8_t lumtab_blu[128] __attribute__((aligned(256)));
+uint8_t gradtab[256] __attribute__((aligned(256)));
 
 void calc_lumtab(void) {
   size_t i;
@@ -49,8 +62,20 @@ void calc_lumtab(void) {
   }
 }
 
+void calc_gradtab(void) {
+  size_t i;
+  for(i = 0; i < 32; ++i) {
+    gradtab[i] = i;
+    gradtab[63 - i] = i;
+  }
+  for(i = 64; i < sizeof(gradtab); ++i) {
+    gradtab[i] = 0;
+  }
+}
+
 void setup() {
   calc_lumtab();
+  calc_gradtab();
   pinMode(H_SYNC, OUTPUT);
   pinMode(V_SYNC, OUTPUT);
   pinMode(RED0, OUTPUT);
@@ -60,6 +85,17 @@ void setup() {
   pinMode(BLU0, OUTPUT);
   pinMode(BLU1, OUTPUT);
   pinMode(BLU2, OUTPUT);
+  pinMode(BKGR, OUTPUT);
+  pinMode(BGRED0, OUTPUT);
+  pinMode(BGRED1, OUTPUT);
+  pinMode(BGRED2, OUTPUT);
+  pinMode(BGRED3, OUTPUT);
+  pinMode(BGRED4, OUTPUT);
+  pinMode(BGGRN0, OUTPUT);
+  pinMode(BGGRN1, OUTPUT);
+  pinMode(BGGRN2, OUTPUT);
+  pinMode(BGGRN3, OUTPUT);
+  pinMode(BGGRN4, OUTPUT);
   cli();
 }
 

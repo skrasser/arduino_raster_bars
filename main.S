@@ -21,7 +21,9 @@ start:
 	mov r4, r19		; r4 <= 6
 	ldi r19, 127
 	mov r5, r19		; r5 <= 127
-
+	lldi r9, 128
+	lldi r10, 32
+	
 	;; Used as colors for bottom text (fixme: combine with above)
 	lldi r6, 2
 	lldi r7, 4
@@ -61,7 +63,7 @@ loop_frame:
 	;;
 	;; Vsync pulse: 3 lines
 	;; 
-	out PORTC, r24		; (1), in last line's BP
+	out PORTC, r10		; (1), in last line's BP
 	ldi r25, 3		; (1), ditto
 v_sync_pulse:
 	call black_line		; 369
@@ -95,9 +97,9 @@ v_back_porch:
 	;; 
 	;; Visible area: upper 240 lines
 	;; 
-	ldi r25, 240		; (1), accounted for above
+	ldi r25, 252		; (1), accounted for above
 vis_upper:
-	call draw_buffer	; 369
+	call draw_buffer_rbars	; 369
 	call draw_wait_bp	; 52
 	dec r25		        ; 1
 	brne vis_upper	  	; 2 if taken, 1 otherwise
@@ -107,7 +109,7 @@ vis_upper:
 	;;
 	;; Visible area: lower 240-5 lines
 	;; 
-	ldi r25, 235		; (1), accounted for above
+	ldi r25, 223		; (1), accounted for above
 vis_lower:
 	call draw_buffer	; 369
 	call draw_wait_bp	; 52
@@ -136,9 +138,9 @@ vis_lower:
 	delay8
 	delay2
 	delay1
-	front_porch_and_sync PORTD, PORTB ; 41
-	delay4				  ; 4
-	call prep_wait_bp		  ; 52
+	front_porch_and_sync	; 41
+	delay4			; 4
+	call prep_wait_bp	; 52
 	.endm
 
 	hardline txt_line0

@@ -1,3 +1,4 @@
+#include "pins.i"
 #define __zero_reg__ r1
 
 	;; Delay macros
@@ -111,63 +112,76 @@ done_\lab:
 	out2 \reg, \port
 	.endm
 
-	;; Fast memory clear, i.e. w/o loop (memory pointed to by X)
-	.macro clrmem1
-	st X+, r1		; 2
+	;; Fast memory fill, i.e. w/o loop (memory pointed to by X)
+	.macro fillmem1 reg
+	st X+, \reg		; 2
 	.endm
   
-	.macro clrmem2
-	clrmem1
-	clrmem1
+	.macro fillmem2 reg
+	fillmem1 \reg
+	fillmem1 \reg
 	.endm
 
-	.macro clrmem4
-	clrmem2
-	clrmem2
+	.macro fillmem4 reg
+	fillmem2 \reg
+	fillmem2 \reg
 	.endm
 
-	.macro clrmem8
-	clrmem4
-	clrmem4
+	.macro fillmem8 reg
+	fillmem4 \reg
+	fillmem4 \reg
 	.endm
 
-	.macro clrmem16
-	clrmem8
-	clrmem8
+	.macro fillmem16 reg
+	fillmem8 \reg
+	fillmem8 \reg
 	.endm
 
-	.macro clrmem32
-	clrmem16
-	clrmem16
+	.macro fillmem32 reg
+	fillmem16 \reg
+	fillmem16 \reg
 	.endm
 
-	.macro clrmem64
-	clrmem32
-	clrmem32
+	.macro fillmem64 reg
+	fillmem32 \reg
+	fillmem32 \reg
 	.endm
 
-	.macro clrmem106
-	clrmem64
-	clrmem32
-	clrmem8
-	clrmem2
+	.macro fillmem106 reg
+	fillmem64 \reg
+	fillmem32 \reg
+	fillmem8 \reg
+	fillmem2 \reg
 	.endm
 
-	
-	.macro front_porch_and_sync colport, syncport
-	;;  Front porch, 16 pixels, 8 cycles
-	out \colport, r1
+	.macro delay7
 	delay4
 	delay2
 	delay1
-	;; Output sync in cycle 329, keep it for 32 cycles
-	out \syncport, r24
+	.endm
+
+	.macro delay31
 	delay16
 	delay8
 	delay4
 	delay2
 	delay1
-	out \syncport, r1
+	.endm
+	
+	.macro front_porch_and_sync_work busy7, busy31, colreg
+	;; Front porch, 16 pixels, 8 cycles
+	out PORTD, r1
+	\busy7
+	;; Output sync in cycle 329, keep it for 32 cycles
+	out PORTB, r10
+	\busy31
+	;; For the horizontal raster bars, we need to set the color once we've
+	;; removed the sync signal
+	out PORTB, \colreg
 	;; Total for macro: 41 cycles
+	.endm
+
+	.macro front_porch_and_sync
+	front_porch_and_sync_work delay7, delay31, r1
 	.endm
 
