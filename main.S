@@ -23,6 +23,7 @@ start:
 	mov r5, r19		; r5 <= 127
 	lldi r9, 128
 	lldi r10, 32
+	lldi r11, 255
 	
 	;; Used as colors for bottom text (fixme: combine with above)
 	lldi r6, 2

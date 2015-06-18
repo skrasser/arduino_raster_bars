@@ -34,7 +34,7 @@ black_line_clr_buf:		; 369 incl. call
 	;;  328 cycles till front porch, which we'll use to clear the linebuf array
 	ldi r26, lo8(linebuf)	; 1, load linebuffer ptr into X
 	ldi r27, hi8(linebuf)	; 1
-	fillmem106 r9	 	; 212, fill with 0x80
+	fillmem106 __zero_reg__	; 212, fill with 0x00
 
 	mov r19, r18		; 1, copy frame count
 	lsr r19			; 1, 0..127
@@ -181,7 +181,7 @@ draw_wait_bp:			; 4 for the call
 	;; drawing
 	st X+, r17		; 2, blue
 	st X+, r17		; 2, blue
-	st X+, r5               ; 2, white
+	st X+, r11              ; 2, white (all colors + 0x80 to disable background)
 	st X+, r19		; 2, green
 	st X+, r19		; 2, green
 

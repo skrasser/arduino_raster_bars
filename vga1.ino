@@ -2,8 +2,8 @@
 
 // Pin mappings for VGA; colors are on portd, horizontal sync is on portb,
 // vertical sync is on portc; pins connected over 470 Ohm resistor each
-#define H_SYNC 13 // PB0
-#define V_SYNC A5 // PC0
+#define H_SYNC 13 // PB5
+#define V_SYNC A5 // PC5
 // PDX
 #define RED0 0    // PD0
 #define GRN0 1    // PD1
@@ -54,11 +54,12 @@ void calc_lumtab(void) {
   for(i = 0; i < sizeof(sinetab); ++i) {
     val = 128u + sinetab[i];
     val = (val >> 5) & 7;
-    // Make sure val is at least 1, then shift up for green output
-    lumtab_grn[i] = (val ? val : 1) << 1;
+    // Make sure val is at least 1, then shift up for green output,
+    // set 0x80 to disable background color
+    lumtab_grn[i] = ((val ? val : 1) << 1) | 0x80;
     // For blue, invert luminance, shift up to blue output
     val = 7 - val;
-    lumtab_blu[i] = (val ? val : 1) << 4;
+    lumtab_blu[i] = ((val ? val : 1) << 4) | 0x80;
   }
 }
 

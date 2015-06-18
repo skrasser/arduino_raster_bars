@@ -170,7 +170,8 @@ done_\lab:
 	
 	.macro front_porch_and_sync_work busy7, busy31, colreg
 	;; Front porch, 16 pixels, 8 cycles
-	out PORTD, r1
+	;; Pin 7 to high (disables background color), primary colors to zero
+	out PORTD, r9
 	\busy7
 	;; Output sync in cycle 329, keep it for 32 cycles
 	out PORTB, r10
