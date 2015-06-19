@@ -27,8 +27,8 @@ start:
 	
 	;; Used as colors for bottom text (fixme: combine with above)
 	lldi r6, 2
-	lldi r7, 4
-	lldi r8, 6
+	lldi r7, 4 + 1
+	lldi r8, 6 + 1
 	
 	ldi r24, 1
 	ldi r23, 3
